@@ -5,7 +5,7 @@ app = FastAPI()
 
 @app.get("/api")
 async def home():
-    return {
+    return { 
         "status": "online",
         "bot": "Gemini PR Review Bot"
     }
