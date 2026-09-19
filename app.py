@@ -8,7 +8,7 @@ async def home():
     return {
         "status": "online",
         "bot": "Gemini PR Review Bot",
-        "message": "GitHub PR reviewer is running"
+        "message": "GitHub PR reviewer is running!"
     }
 
 
@@ -23,7 +23,7 @@ async def health():
 async def github_webhook(request: Request):
     payload = await request.json()
 
-    print("GitHub webhook received")
+    print("GitHub webhook received:")
     print(payload)
 
     return {
