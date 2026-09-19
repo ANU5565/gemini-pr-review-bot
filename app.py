@@ -4,11 +4,10 @@ app = FastAPI()
 
 
 @app.get("/")
-async def home():
+async def root():
     return {
         "status": "online",
-        "bot": "Gemini PR Review Bot",
-        "message": "GitHub PR reviewer is running!"
+        "bot": "Gemini PR Review Bot"
     }
 
 
@@ -19,11 +18,11 @@ async def health():
     }
 
 
-@app.post("/webhook")
+@app.post("/api/webhook")
 async def github_webhook(request: Request):
     payload = await request.json()
 
-    print("GitHub webhook received:")
+    print("GitHub webhook received")
     print(payload)
 
     return {
