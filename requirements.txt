@@ -1,5 +1,1 @@
-fastapi
-google-genai
-PyJWT
-httpx
-cryptography
+fastapi[standard]
