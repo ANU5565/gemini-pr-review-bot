@@ -1,10 +1,12 @@
 import hashlib
 import hmac
+import logging
 import os
 
 from fastapi import FastAPI, HTTPException, Request
 
 app = FastAPI()
+logger = logging.getLogger(__name__)
 
 
 @app.get("/")
@@ -44,8 +46,16 @@ async def github_webhook(request: Request):
 
     payload = await request.json()
 
-    print("GitHub webhook received")
-    print(payload)
+    repository = payload.get("repository", {})
+    logger.info(
+        "GitHub webhook received delivery_id=%s event=%s action=%s repository=%s",
+        request.headers.get("x-github-delivery"),
+        request.headers.get("x-github-event"),
+        payload.get("action"),
+        repository.get("full_name")
+            if isinstance(repository, dict)
+            else None,
+    )
 
     return {
         "status": "received"
