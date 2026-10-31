@@ -1,5 +1,6 @@
 import hashlib
 import hmac
+import json
 import logging
 import os
 
@@ -7,6 +8,12 @@ from fastapi import FastAPI, HTTPException, Request
 
 app = FastAPI()
 logger = logging.getLogger(__name__)
+SUPPORTED_PULL_REQUEST_ACTIONS = {
+    "opened",
+    "reopened",
+    "synchronize",
+    "ready_for_review",
+}
 
 
 @app.get("/")
@@ -44,19 +51,44 @@ async def github_webhook(request: Request):
     if not signature or not hmac.compare_digest(signature, expected_signature):
         raise HTTPException(status_code=401, detail="Invalid webhook signature")
 
-    payload = await request.json()
+    try:
+        payload = json.loads(body)
+    except json.JSONDecodeError as error:
+        raise HTTPException(status_code=400, detail="Invalid JSON payload") from error
 
-    repository = payload.get("repository", {})
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="Webhook payload must be an object")
+
+    event = request.headers.get("x-github-event")
+    if event != "pull_request":
+        logger.info("Ignoring unsupported GitHub webhook event=%s", event)
+        return {"status": "ignored", "reason": "unsupported_event"}
+
+    action = payload.get("action")
+    repository = payload.get("repository")
+    pull_request = payload.get("pull_request")
+    if (
+        action not in SUPPORTED_PULL_REQUEST_ACTIONS
+        or not isinstance(repository, dict)
+        or not repository.get("full_name")
+        or not isinstance(pull_request, dict)
+        or not pull_request.get("number")
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid pull_request webhook payload",
+        )
+
     logger.info(
         "GitHub webhook received delivery_id=%s event=%s action=%s repository=%s",
         request.headers.get("x-github-delivery"),
-        request.headers.get("x-github-event"),
-        payload.get("action"),
-        repository.get("full_name")
-            if isinstance(repository, dict)
-            else None,
+        event,
+        action,
+        repository["full_name"],
     )
 
     return {
-        "status": "received"
+        "status": "accepted",
+        "event": event,
+        "action": action,
     }
