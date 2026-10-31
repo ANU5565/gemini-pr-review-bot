@@ -51,3 +51,19 @@ python -m compileall -q app.py test_app.py
 
 Dependencies are pinned in `requirements.txt` so local and CI installations
 resolve the same versions.
+
+## Vercel deployment
+
+This repository includes `vercel.json` and `api/index.py` for Vercel's Python
+runtime. Import the repository into Vercel and configure these environment
+variables for the deployed project:
+
+- `GITHUB_WEBHOOK_SECRET`: the exact secret configured on the GitHub App webhook
+
+After deployment, verify `https://your-project-domain/health` returns
+`{"status":"healthy"}`, then configure the GitHub App webhook URL as
+`https://your-project-domain/api/webhook`.
+
+The current webhook implementation validates and routes pull-request events;
+Gemini review generation and posting the review back to GitHub still require
+implementation of the integration workflow.
