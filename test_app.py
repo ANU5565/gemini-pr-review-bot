@@ -1,6 +1,7 @@
 import asyncio
 import hashlib
 import hmac
+import logging
 import os
 import unittest
 
@@ -10,17 +11,22 @@ from app import github_webhook
 
 
 class FakeRequest:
-    def __init__(self, body, signature=None):
+    def __init__(self, body, signature=None, headers=None):
         self._body = body
         self.headers = {}
         if signature is not None:
             self.headers["x-hub-signature-256"] = signature
+        if headers:
+            self.headers.update(headers)
 
     async def body(self):
         return self._body
 
     async def json(self):
-        return {"action": "opened"}
+        return {
+            "action": "opened",
+            "repository": {"full_name": "example/repository"},
+        }
 
 
 class WebhookAuthenticationTests(unittest.TestCase):
@@ -42,11 +48,26 @@ class WebhookAuthenticationTests(unittest.TestCase):
         return f"sha256={digest}"
 
     def test_valid_signature_is_accepted(self):
-        response = asyncio.run(
-            github_webhook(FakeRequest(self.body, self.signature()))
-        )
+        with self.assertLogs("app", level=logging.INFO) as logs:
+            response = asyncio.run(
+                github_webhook(
+                    FakeRequest(
+                        self.body,
+                        self.signature(),
+                        {
+                            "x-github-delivery": "delivery-123",
+                            "x-github-event": "pull_request",
+                        },
+                    )
+                )
+            )
 
         self.assertEqual(response, {"status": "received"})
+        self.assertIn("GitHub webhook received", logs.output[0])
+        self.assertIn("delivery-123", logs.output[0])
+        self.assertIn("pull_request", logs.output[0])
+        self.assertIn("example/repository", logs.output[0])
+        self.assertNotIn(self.body.decode(), logs.output[0])
 
     def test_missing_signature_is_rejected(self):
         with self.assertRaises(HTTPException) as context:
